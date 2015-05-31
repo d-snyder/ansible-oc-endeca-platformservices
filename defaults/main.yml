@@ -1,0 +1,10 @@
+endeca_root: /opt
+endeca_user: oracle
+endeca_platformservices_service: platformservices
+endeca_platformservices_version: 11.1.0
+endeca_mdex_version: 6.5.1
+endeca_etools_http_port: 8888
+endeca_etools_server_port: 8090
+endeca_jcd_port: ""
+endeca_install_server_and_agent: Y
+endeca_install_reference_apps: Y
