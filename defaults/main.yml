@@ -1,5 +1,3 @@
-endeca_root: /opt
-endeca_user: oracle
 endeca_platformservices_service: platformservices
 endeca_platformservices_version: 11.1.0
 endeca_mdex_version: 6.5.1

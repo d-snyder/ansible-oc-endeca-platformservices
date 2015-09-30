@@ -1,6 +1,6 @@
 ---
 #
-# This role should be run with sudo=yes sudo_user={{ endeca_user }}.
+# This role should be run with sudo=yes sudo_user={{ install_user }}.
 #
 
 #
@@ -8,63 +8,53 @@
 #
 
 - set_fact:
-    platformservices_archive: "V45999-01.zip"
-    platformservices_install: "OCplatformservices11.1.0-Linux64.bin"
-    tmpdir: /tmp
+    install_archive: "V45999-01.zip"
+    install_executable: "OCplatformservices11.1.0-Linux64.bin"
+
+- name: temporary directory for install
+  register: mktemp
+  command: mktemp -d
+
+- name: download installation archive
+  get_url:
+  args:
+    url: "{{ install_archive_url }}"
+    dest: "{{ playbook_dir }}/{{ install_archive }}"
+  when: install_archive_url is defined
 
 - name: expand platformservices archive
-  unarchive:
-  args:
-    src: "{{ platformservices_archive }}"
-    dest: "{{ tmpdir }}"
-    creates: "{{ tmpdir }}/{{ platformservices_install }}"
+  unarchive: 
+    src="{{ install_archive }}"
+    dest="{{ mktemp.stdout }}"
+    creates="{{ mktemp.stdout }}/{{ install_executable }}"
 
 - name: ensure platformservices install file is executable
   file:
   args:
-    path: "{{ tmpdir }}/{{ platformservices_install }}"
+    path: "{{ mktemp.stdout }}/{{ install_executable }}"
     mode: 0744
 
 - name: create silent install file for platformservices
   template: 
   args:
     src: "platformservices_silent.j2"
-    dest: "{{ tmpdir }}/platformservices_silent.txt"
+    dest: "{{ mktemp.stdout }}/platformservices_silent.txt"
 
 - name: install platform services
-  command: "{{ tmpdir }}/{{ platformservices_install }} --silent --target {{ endeca_root }} < '{{ tmpdir }}/platformservices_silent.txt' 2>&1 > /tmp/platformservices_install.log"
+  command: "{{ mktemp.stdout }}/{{ install_executable }} --silent --target {{ install_root }} < '{{ mktemp.stdout }}/platformservices_silent.txt' 2>&1 > /tmp/platformservices_install.log"
   args:
-    creates: "{{ endeca_root }}/endeca/PlatformServices"
+    creates: "{{ install_root }}/endeca/PlatformServices"
 
-- name: source platformservices environment vars
-  lineinfile:
-  args:
-    dest: "/home/{{ endeca_user }}/.bashrc"
-    line: "source {{ endeca_root }}/endeca/PlatformServices/workspace/setup/installer_sh.ini"
+- include: init.yml tags=configure_service
+    
+- name: clean up temporary directory
+  file: 
+    state=absent 
+    path="{{ mktemp.stdout }}"
 
-- name: ensure endeca pid gets created in correct place
-  lineinfile: 
-  args:
-    create: yes
-    mode: 0755
-    dest: "{{ endeca_root }}/endeca/PlatformServices/11.1.0/tools/server/bin/setenv.sh"
-    regexp: "CATALINA_PID=.*"
-    line: "CATALINA_PID={{ pid_dir }}/{{ endeca_platformservices_service }}.pid"
+#- name: source platformservices environment vars
+#  lineinfile:
+#  args:
+#    dest: "/home/{{ endeca_user }}/.bashrc"
+#    line: "source {{ endeca_root }}/endeca/PlatformServices/workspace/setup/installer_sh.ini"
 
-- name: create platformservices init script
-  template:
-  args:
-    src: "platformservices_init.j2"
-    dest: "/etc/init.d/{{ endeca_platformservices_service }}"
-    mode: 0755
-  sudo: yes
-  sudo_user: root
-
-- name: start service
-  service:
-  args:
-    name: "{{ endeca_platformservices_service }}"
-    enabled: yes
-    state: started
-  sudo: yes
-  sudo_user: root
